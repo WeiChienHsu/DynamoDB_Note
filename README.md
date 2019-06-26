@@ -64,7 +64,6 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
 - Then, when the resource changes, Lambda will execute your function and manage the compute resources as needed in order to keep up with incoming requests.
 
 
-
 ***
 
 # AWS Kinesis Data Firehose
