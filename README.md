@@ -5,6 +5,10 @@
     - [Relational databases](#Relational-databases)
     - [NoSQL](#NoSQL)
     - [DynamoDB Streams](#DynamoDB-Streams)
+    - [DynamoDB Streams Use Cases](#DynamoDB-Streams-Use-Cases)
+    - [Enabling a Stream](#Enabling-a-Stream)
+    - [DynamoDB + DynamoDB Stream + Lambda + Firehose + S3 Use Case](#DynamoDB--DynamoDB-Stream--Lambda--Firehose--S3-Use-Case)
+      - [ETL Solution](#ETL-Solution)
 - [AWS S3](#AWS-S3)
 - [AWS Andes](#AWS-Andes)
 - [AWS EDS](#AWS-EDS)
@@ -51,14 +55,67 @@
 
 - For example, the Java Transaction Library for DynamoDB creates 7N+4 additional writes for every write operation. This is partly because the library holds metadata to manage the transactions to ensure that it’s consistent and can be rolled back before commit.
 
+---
+
 ### DynamoDB Streams
 
-You can use DynamoDB Streams to address all these use cases. DynamoDB Streams is a powerful service that you can combine with other AWS services to solve many similar problems. When enabled, DynamoDB Streams captures a time-ordered sequence of item-level modifications in a DynamoDB table and durably stores the information for up to 24 hours. Applications can access a series of stream records, which contain an item change, from a DynamoDB stream in near real time.
+- DynamoDB Streams is a powerful service that you can combine with other AWS services to solve many similar problems. 
+  
+- When enabled, DynamoDB Streams captures a time-ordered sequence of item-level modifications in a DynamoDB table and durably stores the information for up to 24 hours. 
+  
+- Applications can access a series of stream records, which contain an item change, from a DynamoDB stream in `near real time`.
 
-AWS maintains separate endpoints for DynamoDB and DynamoDB Streams. To work with database tables and indexes, your application must access a DynamoDB endpoint. To read and process DynamoDB Streams records, your application must access a DynamoDB Streams endpoint in the same Region.
+- AWS maintains `separate endpoints for DynamoDB and DynamoDB Streams`. 
 
+- To work with database tables and indexes, your application must access a DynamoDB endpoint. 
+
+- To read and process DynamoDB Streams records, your application must `access a DynamoDB Streams endpoint in the same Region`.
 
 ---
+
+### DynamoDB Streams Use Cases
+
+An application in one AWS region modifies the data in a DynamoDB table. A second application in another AWS region reads these data modifications and writes the data to another table, creating a replica that stays in sync with the original table.
+
+A popular mobile app modifies data in a DynamoDB table, at the rate of thousands of updates per second. Another application captures and stores data about these updates, providing near real time usage metrics for the mobile app.
+
+A global multi-player game has a multi-master topology, storing data in multiple AWS regions. Each master stays in sync by consuming and replaying the changes that occur in the remote regions.
+
+An application automatically sends notifications to the mobile devices of all friends in a group as soon as one friend uploads a new picture.
+
+A new customer adds data to a DynamoDB table. This event invokes another application that sends a welcome email to the new customer.
+
+---
+
+### Enabling a Stream
+
+- You can enable a stream on a new table when you create it. 
+  
+- You can also enable or disable a stream on an existing table, or change the settings of a stream. 
+
+- DynamoDB Streams operates asynchronously, so there is no performance impact on a table if you enable a stream.
+
+---
+
+### DynamoDB + DynamoDB Stream + Lambda + Firehose + S3 Use Case
+
+`Use case`: Suppose that there is a business requirement to store all the invoice transactions for up to 7 years for compliance or audit requirements. Also, the users should be able to run ad hoc queries on this data.
+
+#### ETL Solution
+
+1. DynamoDB is ideal for storing real-time (hot) data that is frequently accessed. 
+
+2. After a while, depending on a use case, the data isn’t hot any more, and it’s typically archived in storage systems like Amazon S3. 
+   
+3. You can design a solution for this using Amazon Kinesis Firehose and S3. 
+
+> Use Lambda or a KCL application to read the DynamoDB stream, and write the data using Kinesis Firehose by calling the `PutRecord` or `PutRecordBatch` 
+   
+4. Kinesis Firehose is a managed service that you can use to load the stream data into Amazon S3, Amazon Redshift, or Amazon Elasticsearch Service through simple API calls. 
+
+> Amazon Kinesis Firehose batches the data and stores it in S3 based on either buffer size (1–128 MB) or buffer interval (60–900 seconds). The criterion that is met first `triggers the data delivery to Amazon S3`.
+
+5. It can also batch, compress, and encrypt the data before loading it, which minimizes the amount of storage used at the destination and increases security.
 
 
 
