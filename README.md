@@ -1,4 +1,78 @@
+
+
+- [DynamoDB](#DynamoDB)
+  - [DynamoDB Streams Use Cases and Design Patterns](#DynamoDB-Streams-Use-Cases-and-Design-Patterns)
+    - [Relational databases](#Relational-databases)
+    - [NoSQL](#NoSQL)
+    - [DynamoDB Streams](#DynamoDB-Streams)
+- [AWS S3](#AWS-S3)
+- [AWS Andes](#AWS-Andes)
+- [AWS EDS](#AWS-EDS)
+- [AWS Lambda](#AWS-Lambda)
+  - [Lambda Use Cases - Data processing](#Lambda-Use-Cases---Data-processing)
+    - [Real-time file processing](#Real-time-file-processing)
+      - [Examples](#Examples)
+    - [Real-time stream processing](#Real-time-stream-processing)
+      - [Examples](#Examples-1)
+    - [Extract, transform, load](#Extract-transform-load)
+      - [Example](#Example)
+  - [Introducing AWS Lambda functions](#Introducing-AWS-Lambda-functions)
+- [AWS Kinesis Data Firehose](#AWS-Kinesis-Data-Firehose)
+  - [Kinesis Data Firehose - Data Flow](#Kinesis-Data-Firehose---Data-Flow)
+
+***
+
 # DynamoDB
+
+
+## DynamoDB Streams Use Cases and Design Patterns
+
+- How do you set up a relationship across multiple tables in which, based on the value of an item from one table, you update the item in a second table?
+
+- How do you trigger an event based on a particular transaction?
+
+- How do you audit or archive transactions?
+
+- How do you replicate data across multiple tables (similar to that of materialized views/streams/replication in relational data stores)?
+
+### Relational databases
+
+- Relational databases provide native support for transactions, triggers, auditing, and replication. 
+  
+- Typically, a transaction in a database refers to performing create, read, update, and delete (CRUD) operations against multiple tables in a block. 
+  
+- A transaction can have only two states—success or failure. In other words, there is no partial completion.
+
+### NoSQL
+
+- As a NoSQL database, DynamoDB `is not designed to support transactions`. 
+
+- Although client-side libraries are available to mimic the transaction capabilities, they are not scalable and cost-effective. 
+
+- For example, the Java Transaction Library for DynamoDB creates 7N+4 additional writes for every write operation. This is partly because the library holds metadata to manage the transactions to ensure that it’s consistent and can be rolled back before commit.
+
+### DynamoDB Streams
+
+You can use DynamoDB Streams to address all these use cases. DynamoDB Streams is a powerful service that you can combine with other AWS services to solve many similar problems. When enabled, DynamoDB Streams captures a time-ordered sequence of item-level modifications in a DynamoDB table and durably stores the information for up to 24 hours. Applications can access a series of stream records, which contain an item change, from a DynamoDB stream in near real time.
+
+AWS maintains separate endpoints for DynamoDB and DynamoDB Streams. To work with database tables and indexes, your application must access a DynamoDB endpoint. To read and process DynamoDB Streams records, your application must access a DynamoDB Streams endpoint in the same Region.
+
+
+---
+
+
+
+***
+
+# AWS S3
+
+***
+
+# AWS Andes
+
+***
+
+# AWS EDS
 
 ***
 
