@@ -10,8 +10,8 @@
     - [DynamoDB + DynamoDB Stream + Lambda + Firehose + S3 Use Case](#DynamoDB--DynamoDB-Stream--Lambda--Firehose--S3-Use-Case)
       - [ETL Solution](#ETL-Solution)
 - [AWS S3](#AWS-S3)
-- [AWS Andes](#AWS-Andes)
-- [AWS EDS](#AWS-EDS)
+- [AWS Andes - Project of Data Lake](#AWS-Andes---Project-of-Data-Lake)
+- [Amazon Elastic Block Store EBS](#Amazon-Elastic-Block-Store-EBS)
 - [AWS Lambda](#AWS-Lambda)
   - [Lambda Use Cases - Data processing](#Lambda-Use-Cases---Data-processing)
     - [Real-time file processing](#Real-time-file-processing)
@@ -123,13 +123,21 @@ A new customer adds data to a DynamoDB table. This event invokes another applica
 
 # AWS S3
 
+Amazon Simple Storage Service (Amazon S3) is an object storage service that offers industry-leading scalability, data availability, security, and performance. 
+
+This means customers of all sizes and industries can use it to store and protect any amount of data for a range of use cases, such as websites, mobile applications, backup and restore, archive, enterprise applications, IoT devices, and big data analytics. 
+
+Amazon S3 provides easy-to-use management features so you can organize your data and configure finely-tuned access controls to meet your specific business, organizational, and compliance requirements. 
+
+Amazon S3 is designed for 99.999999999% (11 9's) of durability, and stores data for millions of applications for companies all around the world.
+
 ***
 
-# AWS Andes
+# AWS Andes - Project of Data Lake
 
 ***
 
-# AWS EDS
+# Amazon Elastic Block Store EBS
 
 ***
 
