@@ -1,6 +1,7 @@
 
 
 - [DynamoDB](#DynamoDB)
+  - [Serverless DynamoDB](#Serverless-DynamoDB)
   - [DynamoDB Streams Use Cases and Design Patterns](#DynamoDB-Streams-Use-Cases-and-Design-Patterns)
     - [Relational databases](#Relational-databases)
     - [NoSQL](#NoSQL)
@@ -27,6 +28,20 @@
 ***
 
 # DynamoDB
+
+Amazon DynamoDB is a key-value and document database that delivers single-digit millisecond performance at any scale. 
+
+It's a fully managed, multiregion, multimaster database with built-in security, backup and restore, and in-memory caching for internet-scale applications. 
+
+DynamoDB can handle more than 10 trillion requests per day and can support peaks of more than 20 million requests per second.
+
+## Serverless DynamoDB
+
+- With DynamoDB, there are no servers to provision, patch, or manage and no software to install, maintain, or operate. DynamoDB automatically scales tables up and down to adjust for capacity and maintain performance. 
+
+- Availability and fault tolerance are built in, eliminating the need to architect your applications for these capabilities. 
+
+- DynamoDB provides both provisioned and on-demand capacity modes so that you can optimize costs by specifying capacity per workload, or paying for only the resources you consume.
 
 
 ## DynamoDB Streams Use Cases and Design Patterns
