@@ -2,7 +2,11 @@
 
 - [DynamoDB](#DynamoDB)
   - [Serverless DynamoDB](#Serverless-DynamoDB)
-  - [DynamoDB Streams Use Cases and Design Patterns](#DynamoDB-Streams-Use-Cases-and-Design-Patterns)
+  - [Java and DynamoDB](#Java-and-DynamoDB)
+    - [Step 1: Create a Table](#Step-1-Create-a-Table)
+    - [Step 2: Load Sample Data](#Step-2-Load-Sample-Data)
+    - [Step 3: Create, Read, Update, and Delete an Item](#Step-3-Create-Read-Update-and-Delete-an-Item)
+- [DynamoDB Streams Use Cases and Design Patterns](#DynamoDB-Streams-Use-Cases-and-Design-Patterns)
     - [Relational databases](#Relational-databases)
     - [NoSQL](#NoSQL)
     - [DynamoDB Streams](#DynamoDB-Streams)
@@ -43,8 +47,130 @@ DynamoDB can handle more than 10 trillion requests per day and can support peaks
 
 - DynamoDB provides both provisioned and on-demand capacity modes so that you can optimize costs by specifying capacity per workload, or paying for only the resources you consume.
 
+## Java and DynamoDB
 
-## DynamoDB Streams Use Cases and Design Patterns
+### Step 1: Create a Table
+
+```java
+package com.amazonaws.codesamples.gsg;
+
+import java.util.Arrays;
+
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
+import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
+import com.amazonaws.services.dynamodbv2.model.KeyType;
+import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
+import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+
+public class MoviesCreateTable {
+
+    public static void main(String[] args) throws Exception {
+
+        AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard()
+            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:8000", "us-west-2"))
+            .build();
+
+        DynamoDB dynamoDB = new DynamoDB(client);
+
+        String tableName = "Movies";
+
+        try {
+            System.out.println("Attempting to create table; please wait...");
+            Table table = dynamoDB.createTable(tableName,
+                Arrays.asList(new KeySchemaElement("year", KeyType.HASH), // Partition
+                                                                          // key
+                    new KeySchemaElement("title", KeyType.RANGE)), // Sort key
+                Arrays.asList(new AttributeDefinition("year", ScalarAttributeType.N),
+                    new AttributeDefinition("title", ScalarAttributeType.S)),
+                new ProvisionedThroughput(10L, 10L));
+            table.waitForActive();
+            System.out.println("Success.  Table status: " + table.getDescription().getTableStatus());
+
+        }
+        catch (Exception e) {
+            System.err.println("Unable to create table: ");
+            System.err.println(e.getMessage());
+        }
+
+    }
+}
+```
+
+### Step 2: Load Sample Data
+
+```java
+package com.amazonaws.codesamples.gsg;
+
+import java.io.File;
+import java.util.Iterator;
+
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.Table;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+public class MoviesLoadData {
+
+    public static void main(String[] args) throws Exception {
+
+        AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard()
+            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:8000", "us-west-2"))
+            .build();
+
+        DynamoDB dynamoDB = new DynamoDB(client);
+
+        Table table = dynamoDB.getTable("Movies");
+
+        JsonParser parser = new JsonFactory().createParser(new File("moviedata.json"));
+
+        JsonNode rootNode = new ObjectMapper().readTree(parser);
+        Iterator<JsonNode> iter = rootNode.iterator();
+
+        ObjectNode currentNode;
+
+        while (iter.hasNext()) {
+            currentNode = (ObjectNode) iter.next();
+
+            int year = currentNode.path("year").asInt();
+            String title = currentNode.path("title").asText();
+
+            try {
+                table.putItem(new Item().withPrimaryKey("year", year, "title", title).withJSON("info",
+                    currentNode.path("info").toString()));
+                System.out.println("PutItem succeeded: " + year + " " + title);
+
+            }
+            catch (Exception e) {
+                System.err.println("Unable to add movie: " + year + " " + title);
+                System.err.println(e.getMessage());
+                break;
+            }
+        }
+        parser.close();
+    }
+}
+```
+
+### Step 3: Create, Read, Update, and Delete an Item
+
+
+
+
+---
+
+# DynamoDB Streams Use Cases and Design Patterns
 
 - How do you set up a relationship across multiple tables in which, based on the value of an item from one table, you update the item in a second table?
 
