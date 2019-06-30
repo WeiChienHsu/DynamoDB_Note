@@ -1,4 +1,17 @@
-# Creating a Static Website in Amazon S3
+- [Module 1 Creating a Static Website in Amazon S3](#Module-1-Creating-a-Static-Website-in-Amazon-S3)
+  - [Create an S3 Bucket](#Create-an-S3-Bucket)
+    - [Good Bucket Names](#Good-Bucket-Names)
+  - [Upload the Website Content to your S3 Bucket](#Upload-the-Website-Content-to-your-S3-Bucket)
+  - [Update the S3 Bucket Policy](#Update-the-S3-Bucket-Policy)
+    - [Remove public access](#Remove-public-access)
+  - [Configure website Hosting](#Configure-website-Hosting)
+- [Module 2: Creating a Service with AWS Fargate](#Module-2-Creating-a-Service-with-AWS-Fargate)
+- [Module 3 - Adding a Data Tier with Amazon DynamoDB](#Module-3---Adding-a-Data-Tier-with-Amazon-DynamoDB)
+- [Module 4: Adding User and API features with Amazon API Gateway and AWS Cognito](#Module-4-Adding-User-and-API-features-with-Amazon-API-Gateway-and-AWS-Cognito)
+- [Module 5: Capturing User Behavior](#Module-5-Capturing-User-Behavior)
+
+
+# Module 1 Creating a Static Website in Amazon S3
 
 ## Create an S3 Bucket
 
@@ -59,5 +72,49 @@ HTTP/1.1 403 Forbidden
 
 - This file contains a string that needs to be replaced with the bucket name you've chosen (indicated with REPLACE_ME_BUCKET_NAME).
 
+### Remove public access
+
+```
+aws s3api delete -bucket-policy --bucket REPLACE_ME_BUCKET_NAME 
+```
+
 ---
+
 ## Configure website Hosting
+
+- As you just verified, your bucket is ready to store and serve "objects" (a.k.a. files plus their metadata). 
+
+- However, a bucket behaves differently from usual webservers. 
+  
+- For example, a GET request to the bucket HTTP endpoint would trigger a List Objects operation, instead of returning the root object. The bucket policy does not grant the s3:ListBucket, so this request is denied:
+
+```
+curl -I "https://REPLACE_ME_BUCKET_NAME.s3-$(aws configure get region).amazonaws.com"
+HTTP/1.1 403 Forbidden
+```
+
+- Configuring static website hosting gives you a different endpoint that serves the specified index and error documents, and can evaluate redirection rules. Create a website configuration with the aws s3 website command:
+
+```
+aws s3 website s3://REPLACE_ME_BUCKET_NAME --index-document index.html
+```
+
+- Now you can use the website endpoint to serve static content directly from your S3 Bucket.
+
+```
+http://REPLACE_ME_BUCKET_NAME.s3-website-REPLACE_ME_YOUR_REGION.amazonaws.com
+```
+
+***
+
+# Module 2: Creating a Service with AWS Fargate
+
+# Module 3 - Adding a Data Tier with Amazon DynamoDB
+
+# Module 4: Adding User and API features with Amazon API Gateway and AWS Cognito
+
+
+# Module 5: Capturing User Behavior
+
+
+#
