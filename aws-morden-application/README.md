@@ -51,7 +51,13 @@ HTTP/1.1 403 Forbidden
 
 ## Update the S3 Bucket Policy
 
+- To serve as a public website, we can create an S3 Bucket Policy that indicates objects stored within this new bucket are publicly accessible. 
 
+- S3 Bucket Policies are represented as JSON documents that `authorizes or denies the invocation of S3 Actions` (S3 API calls) to Principals (in our public example case, anyone).
+
+- The JSON document for the necessary bucket policy is located at: `~/environment/aws-modern-application-workshop/module-1/aws-cli/website-bucket-policy.json.` 
+
+- This file contains a string that needs to be replaced with the bucket name you've chosen (indicated with REPLACE_ME_BUCKET_NAME).
 
 ---
 ## Configure website Hosting
