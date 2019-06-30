@@ -16,7 +16,6 @@
       - [ETL Solution](#ETL-Solution)
 - [AWS S3](#AWS-S3)
 - [AWS Andes - Project of Data Lake](#AWS-Andes---Project-of-Data-Lake)
-- [Amazon Elastic Block Store EBS](#Amazon-Elastic-Block-Store-EBS)
 - [AWS Lambda](#AWS-Lambda)
   - [Lambda Use Cases - Data processing](#Lambda-Use-Cases---Data-processing)
     - [Real-time file processing](#Real-time-file-processing)
@@ -28,6 +27,10 @@
   - [Introducing AWS Lambda functions](#Introducing-AWS-Lambda-functions)
 - [AWS Kinesis Data Firehose](#AWS-Kinesis-Data-Firehose)
   - [Kinesis Data Firehose - Data Flow](#Kinesis-Data-Firehose---Data-Flow)
+- [AWS CloudFormation](#AWS-CloudFormation)
+- [AWS Identity and Access Management](#AWS-Identity-and-Access-Management)
+- [AWS Fargate](#AWS-Fargate)
+- [AWS CodePipeline](#AWS-CodePipeline)
 
 ***
 
@@ -276,9 +279,6 @@ Amazon S3 is designed for 99.999999999% (11 9's) of durability, and stores data 
 
 # AWS Andes - Project of Data Lake
 
-***
-
-# Amazon Elastic Block Store EBS
 
 ***
 
@@ -377,8 +377,37 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
 
 - For Splunk destinations, streaming data is delivered to Splunk, and it can optionally be backed up to your S3 bucket concurrently.
 
----
+***
 
+# AWS CloudFormation
+
+- AWS CloudFormation provides a common language for you to describe and provision all the infrastructure resources in your cloud environment. 
+
+- CloudFormation allows you to use a simple text file to model and provision, in an automated and secure manner, `all the resources needed for your applications across all regions and accounts`. This file serves as the single source of truth for your cloud environment. 
+
+- AWS CloudFormation is available at no additional charge, and you pay only for the AWS resources needed to run your applications.
 
 
 ***
+
+# AWS Identity and Access Management
+
+- AWS Identity and Access Management (IAM) enables you to manage access to AWS services and resources securely. 
+
+- Using IAM, you can create and manage AWS users and groups, and use permissions to allow and deny their access to AWS resources. 
+
+- IAM is a feature of your AWS account offered at no additional charge. You will be charged only for use of other AWS services by your users.
+
+***
+
+# AWS Fargate
+
+AWS Fargate is a compute engine for Amazon ECS that allows you to `run containers without having to manage servers or clusters`. 
+
+- With AWS Fargate, you no longer have to provision, configure, and scale clusters of virtual machines to run containers. 
+  
+- This removes the need to choose server types, decide when to scale your clusters, or optimize cluster packing. AWS Fargate removes the need for you to interact with or think about servers or clusters. Fargate lets you focus on designing and building your applications instead of managing the infrastructure that runs them.
+
+***
+
+# AWS CodePipeline
