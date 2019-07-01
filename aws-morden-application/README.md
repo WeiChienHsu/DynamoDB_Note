@@ -7,10 +7,28 @@
   - [Configure website Hosting](#Configure-website-Hosting)
 - [Module 2: Creating a Service with AWS Fargate](#Module-2-Creating-a-Service-with-AWS-Fargate)
   - [Creating the Core Infrastructure using AWS CloudFormation](#Creating-the-Core-Infrastructure-using-AWS-CloudFormation)
+      - [An Amazon VPC](#An-Amazon-VPC)
+      - [Two NAT Gateways](#Two-NAT-Gateways)
+      - [A DynamoDB VPC Endpoint](#A-DynamoDB-VPC-Endpoint)
+      - [A Security Group](#A-Security-Group)
+      - [IAM Roles](#IAM-Roles)
+    - [Build the Cloud Formation Stack](#Build-the-Cloud-Formation-Stack)
   - [Deploying a Service with AWS Fargate](#Deploying-a-Service-with-AWS-Fargate)
+    - [Building A Docker Image](#Building-A-Docker-Image)
+      - [Build the docker image](#Build-the-docker-image)
+    - [Pushing the Docker Image to Amazon ECR](#Pushing-the-Docker-Image-to-Amazon-ECR)
   - [Configuring the Service Prerequisites in Amazon ECS](#Configuring-the-Service-Prerequisites-in-Amazon-ECS)
+    - [Create an ECS Cluster](#Create-an-ECS-Cluster)
+    - [Create an AWS CloudWatch Logs Group](#Create-an-AWS-CloudWatch-Logs-Group)
+    - [Register an ECS Task Definition](#Register-an-ECS-Task-Definition)
   - [Enabling a Load Balanced Fargate Service](#Enabling-a-Load-Balanced-Fargate-Service)
+    - [Create a Network Load Balancer](#Create-a-Network-Load-Balancer)
+    - [Create a Load Balancer Target Group](#Create-a-Load-Balancer-Target-Group)
+    - [Create a Load Balancer Listener](#Create-a-Load-Balancer-Listener)
   - [Creating a Service with Fargate](#Creating-a-Service-with-Fargate)
+    - [Creating a Service Linked Role for ECS](#Creating-a-Service-Linked-Role-for-ECS)
+    - [Create the Service](#Create-the-Service)
+    - [Test the Service](#Test-the-Service)
   - [Update Mythical Mysfits to Call the NLB](#Update-Mythical-Mysfits-to-Call-the-NLB)
   - [Automating Deployments using AWS Code Services](#Automating-Deployments-using-AWS-Code-Services)
   - [Test the CI/CD Pipeline](#Test-the-CICD-Pipeline)
@@ -25,7 +43,7 @@
       - [An Amazon S3 bucket](#An-Amazon-S3-bucket)
       - [An AWS Lambda function](#An-AWS-Lambda-function)
       - [An Amazon API Gateway REST API](#An-Amazon-API-Gateway-REST-API)
-      - [IAM Roles](#IAM-Roles)
+      - [IAM Roles](#IAM-Roles-1)
 
 
 # Module 1 Creating a Static Website in Amazon S3
@@ -136,29 +154,201 @@ For our Mythical Mysfits backend, we will use Java and create a `Spring Boot app
 
 ## Creating the Core Infrastructure using AWS CloudFormation
 
+- `AWS CloudFormation` is a service that can programmatically provision AWS resources that you declare within JSON or YAML files called CloudFormation Templates, enabling the common best practice of Infrastructure as Code. 
 
+- We have provided a CloudFormation template to create all of the necessary Network and Security resources in /module-2/cfn/core.yml. This template will create the following resources:
+
+
+---
+
+#### An Amazon VPC
+
+- `a network environment` that contains four subnets (two public and two private) in the 10.0.0.0/16 private IP space, as well as all the needed Route Table configurations. 
+  
+- The subnets for this network are created in separate AWS Availability Zones (AZ) to enable high availability across multiple physical facilities in an AWS Region. Learn more about how AZs can help you achieve High Availability.
+
+#### Two NAT Gateways 
+
+(one for each public subnet, also panning multiple AZs) - `allows the containers we will eventually deploy into our private subnets to communicate out to the Internet to download necessary packages`, etc.
+
+#### A DynamoDB VPC Endpoint
+
+our microservice backend will eventually integrate with Amazon DynamoDB for persistence (as part of module 3).
+
+#### A Security Group 
+
+Allows your docker containers to receive traffic on port 8080 from the Internet through the Network Load Balancer.
+
+#### IAM Roles
+
+Identity and Access Management Roles are created. These will be used throughout the workshop to give AWS services or resources you create access to other AWS services like DynamoDB, S3, and more.
+
+---
+
+### Build the Cloud Formation Stack
+
+To create these resources, run the following command in the Cloud9 terminal (will take ~10 minutes for stack to be created):
+
+```
+aws cloudformation create-stack --stack-name MythicalMysfitsCoreStack --capabilities CAPABILITY_NAMED_IAM --template-body file://~/environment/aws-modern-application-workshop/module-2/cfn/core.yml   
+```
+
+---
 
 ## Deploying a Service with AWS Fargate
 
 
+### Building A Docker Image
+
+Let's build and store a docker container image containing the code and configuration required to run the Mythical Mysfits backend. This will be built as a microservice API created using Java and Spring Boot. We will build the docker container image within Cloud9 and then push it to the Amazon Elastic Container Registry, where it will be available to pull when we create our service using Fargate.
+
+#### Build the docker image
+
+```
+cd ~/environment/aws-modern-application-workshop/module-2/app/servi
+mvn clean install
+```
+
+build the docker image, this will use the file in the current directory called Dockerfile that tells Docker all of the instructions that should take place when the build command is executed. Replace the contents in and the {braces} below with the appropriate information from the account/region you're working in.
+
+Once you have your Account ID, you are ready to build the docker image. You will tag the image when performing the build command (using -t) with a specific tag format so that the image can later be pushed to the Amazon Elastic Container Registry service.
+
+```
+cd ..
+docker build . -t REPLACE_ME_ACCOUNT_ID.dkr.ecr.REPLACE_ME_REGION.amazonaws.com/mythicalmysfits/service:latest
+```
+
+You will see docker download and install all of the necessary dependency packages that our application needs, and output the tag for the built image. Copy the image tag for later reference. Below the example tag shown is: 
+
+```
+111111111111.dkr.ecr.us-east-1.amazonaws.com/mythicalmysfits/service:latest
+```
+---
+
+### Pushing the Docker Image to Amazon ECR
+
+With a successful test of our service locally, we're ready to create a container image repository in Amazon Elastic Container Registry (Amazon ECR) and push our image into it. In order to create the registry, run the following command, this creates a new repository in the default AWS ECR registry created for your account.
+
+
+---
 
 ## Configuring the Service Prerequisites in Amazon ECS
 
 
+### Create an ECS Cluster
+
+With the service image image stored in the ECR repository we can proceed to deploy to a service hosted on Amazon ECS using AWS Fargate. The same service you tested locally via the terminal in Cloud9 as part of the last module will now be deployed in the cloud and publicly available behind a Network Load Balancer.
+
+First, we will create a Cluster in the Amazon Elastic Container Service (ECS). In this context a "Cluster" is just a reference to the compute power for our containers because we will not be managing servers. AWS Fargate allows you to specify that your containers be deployed to a cluster without having to actually provision or manage any servers yourself.
+
+
+### Create an AWS CloudWatch Logs Group
+
+Next, we will create a new log group in AWS CloudWatch Logs. AWS CloudWatch Logs is a service for log collection and analysis. The logs that your container generates will automatically be pushed to AWS CloudWatch logs as part of this specific group. This is especially important when using AWS Fargate since you will not have access to the server infrastructure where your containers are running.
+
+### Register an ECS Task Definition
+
+Now that we have a cluster created and a log group defined for where our container logs will be pushed to, we're ready to register an ECS task definition. A task in ECS is a set of container images that should be executed. A task definition declares that set of containers and the resources and configuration those containers require. You will use the AWS CLI to create a new task definition for how your new container image should be scheduled to the ECS cluster we just created.
+
+Once you have replaced the values in task-defintion.json and saved it. Execute the following command to register a new task definition in ECS:
+
+```
+aws ecs register-task-definition --cli-input-json file://~/environment/aws-modern-application-workshop/module-2/aws-cli/task-definition.json
+```
+
+---
 
 ## Enabling a Load Balanced Fargate Service
 
+- With a new task definition registered, we're ready to provision the infrastructure needed in our service stack. 
 
+- Rather than directly expose our service to the Internet, we will provision a Network Load Balancer (NLB) to sit in front of our service tier. 
+  
+- This would enable our frontend website code to communicate with a single DNS name while our backend service would be free to elastically scale in-and-out, in multiple Availability Zones, based on demand or if failures occur and new containers need to be provisioned.
+
+
+### Create a Network Load Balancer
+
+To provision a new NLB, execute the following CLI command in the Cloud9 terminal (retrieve the subnetIds from the CloudFormation output you saved):
+
+```
+aws elbv2 create-load-balancer --name mysfits-nlb --scheme internet-facing --type network --subnets REPLACE_ME_PUBLIC_SUBNET_ONE REPLACE_ME_PUBLIC_SUBNET_TWO > ~/environment/nlb-output.json
+```
+
+When this command has successfully completed, a new file will be created in your IDE called nlb-output.json. You will be using the DNSName, VpcId, and LoadBalancerArn in later steps.
+
+### Create a Load Balancer Target Group
+
+- Next, use the CLI to create an NLB target group. A target group allows AWS resources to register themselves as targets for requests that the load balancer receives to forward. 
+
+- Our service containers will automatically register to this target so that they can receive traffic from the NLB when they are provisioned.
+
+- This command includes one value that will need to be replaced, your `vpc-id` which can be found as a value within the earlier saved MythicalMysfitsCoreStack output returned by CloudFormation.
+
+```
+aws elbv2 create-target-group --name MythicalMysfits-TargetGroup --port 8080 --protocol TCP --target-type ip --vpc-id REPLACE_ME_VPC_ID --health-check-interval-seconds 10 --health-check-path / --health-check-protocol HTTP --healthy-threshold-count 3 --unhealthy-threshold-count 3 > opn
+```
+
+
+---
+
+### Create a Load Balancer Listener
+
+Next, use the CLI to create a load balancer listener for the NLB. This informs that load balancer that for requests received on a specific port, they should be forwarded to targets that have registered to the above target group. Be sure to replace the two indicated values with the appropriate ARN from the TargetGroup and the NLB that you saved from the previous steps:
+
+```
+aws elbv2 create-listener --default-actions TargetGroupArn=REPLACE_ME_NLB_TARGET_GROUP_ARN,Type=forward --load-balancer-arn REPLACE_ME_NLB_ARN --port 80 --protocol TCP
+
+```
+
+---
 
 ## Creating a Service with Fargate
 
+### Creating a Service Linked Role for ECS
 
+If you have already used ECS in the past, you already have created a Service Linked Role and can skip over this step and move on to the next one. If you have never used ECS before, we need to create an service linked role in IAM that grants the ECS service itself permissions to make ECS API requests within your account. This is required because when you create a service in ECS, the service will call APIs within your account to perform actions like pulling docker images, creating new tasks, etc.
+
+
+### Create the Service
+
+- With the NLB created and configured, and the ECS service granted appropriate permissions, we're ready to create the actual ECS service where our containers will run and register themselves to the load balancer to receive traffic.
+
+
+- We have included a JSON file for the CLI input that is located at: `~/environment/aws-modern-application-workshop/module-2/aws-cli/service-definition.json`. 
+
+- This file includes all of the configuration details for the service to be created, including indicating that this service should be launched with AWS Fargate
+
+- which means that `you do not have to provision any servers within the targeted cluster`. 
+  
+- The containers that are scheduled as part of the task used in this service will run on top of a cluster that is fully managed by AWS.
+
+### Test the Service
+
+Copy the DNS name you saved when creating the NLB and send a request to it using the preview browser in Cloud9 (or by simply any web browser, since this time our service is available on the Internet). Try sending a request to the mysfits resource:
+
+```
+#Replace with your NLB DNS name
+http://mysfits-nlb-123456789-abc123456.elb.us-east-1.amazonaws.com/mysfits
+```
+
+---
 
 ## Update Mythical Mysfits to Call the NLB
 
 
+Next, we need to integrate our website with your new API backend instead of using the hard coded data that we previously uploaded to S3. You'll need to update the following file to use the same NLB URL for API calls: `/module-2/web/index.html`
+
+
+```html
+var mysfitsApiEndPoint = "NLB URI"
+```
+
+---
+
 ## Automating Deployments using AWS Code Services
 
+---
 
 ## Test the CI/CD Pipeline
 
