@@ -31,6 +31,11 @@
     - [Test the Service](#Test-the-Service)
   - [Update Mythical Mysfits to Call the NLB](#Update-Mythical-Mysfits-to-Call-the-NLB)
   - [Automating Deployments using AWS Code Services](#Automating-Deployments-using-AWS-Code-Services)
+    - [Create a S3 Bucket for Pipeline Artifacts](#Create-a-S3-Bucket-for-Pipeline-Artifacts)
+    - [Create a CodeCommit Repository](#Create-a-CodeCommit-Repository)
+    - [Create a CodeBuild Project](#Create-a-CodeBuild-Project)
+    - [Create a CodePipeline Pipeline](#Create-a-CodePipeline-Pipeline)
+    - [Enable Automated Access to ECR Image Repository](#Enable-Automated-Access-to-ECR-Image-Repository)
   - [Test the CI/CD Pipeline](#Test-the-CICD-Pipeline)
 - [Module 3 Adding a Data Tier with Amazon DynamoDB](#Module-3-Adding-a-Data-Tier-with-Amazon-DynamoDB)
   - [Adding a NoSQL Database to Mythical Mysfits](#Adding-a-NoSQL-Database-to-Mythical-Mysfits)
@@ -234,7 +239,6 @@ With a successful test of our service locally, we're ready to create a container
 
 ## Configuring the Service Prerequisites in Amazon ECS
 
-
 ### Create an ECS Cluster
 
 With the service image image stored in the ECR repository we can proceed to deploy to a service hosted on Amazon ECS using AWS Fargate. The same service you tested locally via the terminal in Cloud9 as part of the last module will now be deployed in the cloud and publicly available behind a Network Load Balancer.
@@ -347,6 +351,80 @@ var mysfitsApiEndPoint = "NLB URI"
 ---
 
 ## Automating Deployments using AWS Code Services
+
+### Create a S3 Bucket for Pipeline Artifacts
+
+- Now that you have a service up and running, you may think of code changes that you'd like to make to your service. 
+
+- Instead of deploying manually, let's create a fully managed CI/CD stack that will automatically deliver all of the code changes that you make to your code base to the service you created during the last module.
+
+- Similarly to the website bucket, this bucket needs a bucket policy to define access permissions. 
+  
+- But unlike our website bucket that allowed access to anyone, `only our CI/CD pipeline should have access` to this bucket. 
+  
+- We have provided the JSON file needed for this policy at `~/environment/aws-modern-application-workshop/module-2/aws-cli/artifacts-bucket-policy.json.` 
+  
+- Open this file, and inside you will need to replace several strings to include the ARNs that were created as part of the MythicalMysfitsCoreStack earlier, as well as your newly chosen bucket name for your CI/CD artifacts.
+
+### Create a CodeCommit Repository
+
+You'll need a repository to store and share your code. 
+
+### Create a CodeBuild Project
+
+- With a repository to store our code in, and an S3 bucket that will be used for our CI/CD artifacts, lets add to the CI/CD stack with a way for a service build to occur. 
+  
+- This will be accomplished by creating an AWS CodeBuild Project. 
+  
+- Any time a build execution is triggered, AWS CodeBuild will automatically provision a build server to our configuration and execute the steps required to build our docker image and push a new version of it to the ECR repository we created (and then spin the server down when the build is completed). 
+  
+- The steps for our build (which package our Java code and build/push the Docker container) are included in the `~/environment/aws-modern-application-workshop/module-2/app/buildspec.yml` file. 
+  
+- The buildspec.yml file is what you create to instruct CodeBuild what steps are required for a build execution within a CodeBuild project.
+
+- To create the CodeBuild project, `another CLI input file is required to be updated with parameters specific to your resources`. 
+  
+- It is located at `~/environment/aws-modern-application-workshop/module-2/aws-cli/code-build-project.json`. 
+  
+- Similarly replace the values within this file as you have done before from the MythicalMysfitsCoreStackOutput. Once saved, execute the following with the CLI to create the project:
+
+```
+aws codebuild create-project --cli-input-json file://~/environment/aws-modern-application-workshop/module-2/aws-cli/code-build-project.json
+```
+
+### Create a CodePipeline Pipeline
+
+- Finally, we need a way to continuously integrate our CodeCommit repository with our CodeBuild project so that builds will automatically occur whenever a code change is pushed to the repository. 
+
+- Then, we need a way to continuously deliver those newly built artifacts to our service in ECS. AWS CodePipeline is the service that glues these actions together in a pipeline you will create next.
+
+- Your pipeline in CodePipeline will do just what I described above. 
+  
+- Anytime `a code change is pushed into your CodeCommit repository`, `CodePipeline will deliver the latest code to your AWS CodeBuild project so that a build will occur`. 
+  
+- When successfully built by CodeBuild, CodePipeline will perform a deployment to ECS using the latest container image that the CodeBuild execution pushed into ECR.
+
+```
+aws codepipeline create-pipeline --cli-input-json file://~/environment/aws-modern-application-workshop/module-2/aws-cli/code-pipeline.json
+```
+
+### Enable Automated Access to ECR Image Repository
+
+- We have one final step before our CI/CD pipeline can execute end-to-end successfully. 
+  
+- With a CI/CD pipeline in place, you won't be manually pushing container images into ECR anymore.
+  
+-  CodeBuild will be pushing new images now. 
+  
+-  We need to `give CodeBuild permission to perform actions on your image repository with an ECR repository policy`*. 
+  
+-  The policy document needs to be updated with the specific ARN for the CodeBuild role created by the MythicalMysfitsCoreStack, and the policy document is located at `~/environment/aws-modern-application-workshop/module-2/aws-cli/ecr-policy.json.` 
+  
+-  Update and save this file and then run the following command to create the policy:
+
+```
+aws ecr set-repository-policy --repository-name mythicalmysfits/service --policy-text file://~/environment/aws-modern-application-workshop/module-2/aws-cli/ecr-policy.json
+```
 
 ---
 
