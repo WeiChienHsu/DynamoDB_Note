@@ -37,6 +37,9 @@
     - [Create a CodePipeline Pipeline](#Create-a-CodePipeline-Pipeline)
     - [Enable Automated Access to ECR Image Repository](#Enable-Automated-Access-to-ECR-Image-Repository)
   - [Test the CI/CD Pipeline](#Test-the-CICD-Pipeline)
+    - [Using Git with AWS CodeCommit](#Using-Git-with-AWS-CodeCommit)
+    - [Pushing a Code Change](#Pushing-a-Code-Change)
+    - [](#)
 - [Module 3 Adding a Data Tier with Amazon DynamoDB](#Module-3-Adding-a-Data-Tier-with-Amazon-DynamoDB)
   - [Adding a NoSQL Database to Mythical Mysfits](#Adding-a-NoSQL-Database-to-Mythical-Mysfits)
   - [Changing the application to read from Amazon DynamoDB](#Changing-the-application-to-read-from-Amazon-DynamoDB)
@@ -49,6 +52,14 @@
       - [An AWS Lambda function](#An-AWS-Lambda-function)
       - [An Amazon API Gateway REST API](#An-Amazon-API-Gateway-REST-API)
       - [IAM Roles](#IAM-Roles-1)
+  - [Copy the Streaming Service Code](#Copy-the-Streaming-Service-Code)
+  - [Update the Lambda Function Package and Code](#Update-the-Lambda-Function-Package-and-Code)
+  - [Creating the Streaming Service Stack](#Creating-the-Streaming-Service-Stack)
+    - [Create an S3 Bucket for Lambda Function Code Packages](#Create-an-S3-Bucket-for-Lambda-Function-Code-Packages)
+    - [Use the SAM CLI to Package your Code for Lambda](#Use-the-SAM-CLI-to-Package-your-Code-for-Lambda)
+  - [Emmiting Mysfit Profile Clicks to the Stream](#Emmiting-Mysfit-Profile-Clicks-to-the-Stream)
+    - [Update the Website Content](#Update-the-Website-Content)
+    - [Push the New Site Version to S3](#Push-the-New-Site-Version-to-S3)
 
 
 # Module 1 Creating a Static Website in Amazon S3
@@ -430,6 +441,35 @@ aws ecr set-repository-policy --repository-name mythicalmysfits/service --policy
 
 ## Test the CI/CD Pipeline
 
+### Using Git with AWS CodeCommit
+
+To test out the new pipeline, we need to configure git within your Cloud9 IDE and integrate it with your CodeCommit repository.
+
+AWS CodeCommit provides a credential helper for git that we will use to make integration easy. 
+
+### Pushing a Code Change
+
+- After the change is pushed into the repository, you can open the CodePipeline service in the AWS Console to view your changes as they progress through the CI/CD pipeline. 
+
+- After committing your code change, it will take about 5 to 10 minutes for the changes to be deployed to your live service running in Fargate. 
+  
+- During this time:
+  
+- 1. AWS CodePipeline will orchestrate triggering a pipeline execution when the changes have been checked into your CodeCommit repository
+  
+- 2. Trigger your CodeBuild project to initiate a new build
+  
+- 3. Retrieve the docker image that was pushed to ECR by CodeBuild
+  
+- 4. Perform an automated ECS Update Service action to connection drain the existing containers that are running in your service 
+  
+- 5. Replace them with the newly built image. 
+  
+
+- You can view the progress of your code change through the CodePipeline console here (no actions needed, just watch the automation in action!): AWS CodePipeline
+
+
+### 
 
 
 ***
@@ -539,5 +579,31 @@ A new bucket will be created in S3 where all of the processed click event record
   
 - The `Amazon API Gateway API also requires a new role` that permits the API to invoke the PutRecord API within Kinesis Firehose for each received API request.
 
+---
+
+## Copy the Streaming Service Code
+
+---
+
+## Update the Lambda Function Package and Code
+
+---
+
+## Creating the Streaming Service Stack
+
+### Create an S3 Bucket for Lambda Function Code Packages
+
+### Use the SAM CLI to Package your Code for Lambda
+
+
+---
+
+## Emmiting Mysfit Profile Clicks to the Stream
+ 
+### Update the Website Content
+
+### Push the New Site Version to S3
+
+To view the records that have been processed, they will arrive in the destination S3 bucket created as part of your MythicalMysfitsStreamingStack. Visit the S3 console here and explore the bucket you created for the streaming records (it will be prefixed with mythicalmysfitsstreamings-clicksdestinationbucket)
 
 ***
