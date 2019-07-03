@@ -27,6 +27,10 @@
   - [Introducing AWS Lambda functions](#Introducing-AWS-Lambda-functions)
 - [AWS Kinesis Data Firehose](#AWS-Kinesis-Data-Firehose)
   - [Kinesis Data Firehose - Data Flow](#Kinesis-Data-Firehose---Data-Flow)
+  - [Demystifying AWS Kinesis: Streams vs Firehose](#Demystifying-AWS-Kinesis-Streams-vs-Firehose)
+    - [Kinesis streams](#Kinesis-streams)
+    - [Kineses firehose](#Kineses-firehose)
+  - [Grant Kinesis Data Firehose Access to an Amazon S3 Destination](#Grant-Kinesis-Data-Firehose-Access-to-an-Amazon-S3-Destination)
 - [AWS CloudFormation](#AWS-CloudFormation)
 - [AWS Identity and Access Management](#AWS-Identity-and-Access-Management)
 - [AWS Fargate](#AWS-Fargate)
@@ -348,7 +352,7 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
 
 # AWS Kinesis Data Firehose
 
-- Amazon Kinesis Data Firehose is the easiest way to reliably load streaming data into data lakes, data stores and analytics tools. 
+- Amazon Kinesis Data Firehose is the easiest way to reliably load streaming data into data lakes, data stores and analytics tools.
 
 - It can capture, transform, and load streaming data into Amazon S3, Amazon Redshift, Amazon Elasticsearch Service, and Splunk, enabling near real-time analytics with existing business intelligence tools and dashboards you’re already using today. 
 
@@ -376,6 +380,128 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
 - For Amazon ES destinations, streaming data is delivered to your Amazon ES cluster, and it can optionally be backed up to your S3 bucket concurrently.
 
 - For Splunk destinations, streaming data is delivered to Splunk, and it can optionally be backed up to your S3 bucket concurrently.
+
+---
+
+## Demystifying AWS Kinesis: Streams vs Firehose
+
+Kinesis Streams and Kinesis Firehose both allow data to be loaded using HTTPS, the `Kinesis Producer Library,` `the Kinesis Client Library`, and the `Kinesis Agent`.
+
+### Kinesis streams
+- The more customizable option, Streams is best suited for developers building custom applications or streaming data for specialized needs. 
+
+- The customizability of the approach, however, requires manual scaling and provisioning. 
+  
+- Data typically is made available in a stream for 24 hours, but for an additional cost, users can gain data availability for up to seven days.
+
+### Kineses firehose
+- The simpler approach, Firehose handles loading data streams directly into AWS products for processing. 
+  
+- Scaling is handled automatically, up to gigabytes per second, and allows for batching, encrypting, and compressing. 
+  
+- Firehose also allows for streaming to S3, Elasticsearch Service, or Redshift, where data can be copied for processing through additional services.
+
+---
+
+## Grant Kinesis Data Firehose Access to an Amazon S3 Destination
+
+When you're using an Amazon S3 destination, Kinesis Data Firehose delivers data to your S3 bucket and can optionally use an AWS KMS key that you own for data encryption. If error logging is enabled, Kinesis Data Firehose also sends data delivery errors to your CloudWatch log group and streams. You are required to have an IAM role when creating a delivery stream. Kinesis Data Firehose assumes that IAM role and gains access to the specified bucket, key, and CloudWatch log group and streams.
+
+Use the following trust policy to enable Kinesis Data Firehose to assume the role. Edit the policy to replace account-id with your AWS account ID. This ensures that only you can request Kinesis Data Firehose to assume the IAM role.
+
+```yml
+{
+
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "firehose.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId":"account-id"
+        }
+      }
+    }
+  ]
+}
+```
+
+Use the following access policy to enable Kinesis Data Firehose to access your S3 bucket and AWS KMS key. If you don't own the S3 bucket, add s3:PutObjectAcl to the list of Amazon S3 actions. This grants the bucket owner full access to the objects delivered by Kinesis Data Firehose. This policy also has a statement that allows access to Amazon Kinesis Data Streams. If you don't use Kinesis Data Streams as your data source, you can remove that statement.
+
+```yml
+{
+    "Version": "2012-10-17",  
+    "Statement":
+    [    
+        {      
+            "Effect": "Allow",      
+            "Action": [        
+                "s3:AbortMultipartUpload",        
+                "s3:GetBucketLocation",        
+                "s3:GetObject",        
+                "s3:ListBucket",        
+                "s3:ListBucketMultipartUploads",        
+                "s3:PutObject"
+            ],      
+            "Resource": [        
+                "arn:aws:s3:::bucket-name",
+                "arn:aws:s3:::bucket-name/*"		    
+            ]    
+        },        
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kinesis:DescribeStream",
+                "kinesis:GetShardIterator",
+                "kinesis:GetRecords"
+            ],
+            "Resource": "arn:aws:kinesis:region:account-id:stream/stream-name"
+        },
+        {
+           "Effect": "Allow",
+           "Action": [
+               "kms:Decrypt",
+               "kms:GenerateDataKey"
+           ],
+           "Resource": [
+               "arn:aws:kms:region:account-id:key/key-id"           
+           ],
+           "Condition": {
+               "StringEquals": {
+                   "kms:ViaService": "s3.region.amazonaws.com"
+               },
+               "StringLike": {
+                   "kms:EncryptionContext:aws:s3:arn": "arn:aws:s3:::bucket-name/prefix*"
+               }
+           }
+        },
+        {
+           "Effect": "Allow",
+           "Action": [
+               "logs:PutLogEvents"
+           ],
+           "Resource": [
+               "arn:aws:logs:region:account-id:log-group:log-group-name:log-stream:log-stream-name"
+           ]
+        },
+        {
+           "Effect": "Allow", 
+           "Action": [
+               "lambda:InvokeFunction", 
+               "lambda:GetFunctionConfiguration" 
+           ],
+           "Resource": [
+               "arn:aws:lambda:region:account-id:function:function-name:function-version"
+           ]
+        }
+    ]
+}
+```
+
 
 ***
 
@@ -406,8 +532,20 @@ AWS Fargate is a compute engine for Amazon ECS that allows you to `run container
 
 - With AWS Fargate, you no longer have to provision, configure, and scale clusters of virtual machines to run containers. 
   
-- This removes the need to choose server types, decide when to scale your clusters, or optimize cluster packing. AWS Fargate removes the need for you to interact with or think about servers or clusters. Fargate lets you focus on designing and building your applications instead of managing the infrastructure that runs them.
+- This removes the need to choose server types, decide when to scale your clusters, or optimize cluster packing. 
+  
+- AWS Fargate removes the need for you to interact with or think about servers or clusters. 
+  
+- Fargate lets you focus on designing and building your applications instead of managing the infrastructure that runs them.
 
 ***
 
 # AWS CodePipeline
+
+- AWS CodePipeline is a fully managed continuous delivery service that helps you automate your release pipelines for fast and reliable application and infrastructure updates. 
+
+- CodePipeline automates the build, test, and deploy phases of your release process every time there is a code change, based on the release model you define.
+
+-  This enables you to rapidly and reliably deliver features and updates. 
+  
+-  You can easily integrate AWS CodePipeline with third-party services such as GitHub or with your own custom plugin.
