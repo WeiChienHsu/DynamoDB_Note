@@ -209,6 +209,8 @@ To create these resources, run the following command in the Cloud9 terminal (wil
 aws cloudformation create-stack --stack-name MythicalMysfitsCoreStack --capabilities CAPABILITY_NAMED_IAM --template-body file://~/environment/aws-modern-application-workshop/module-2/cfn/core.yml   
 ```
 
+`ROLLBACK_COMPLETE`: mean that the create is failed since we have had some duplicated IAM.
+
 ---
 
 ## Deploying a Service with AWS Fargate
