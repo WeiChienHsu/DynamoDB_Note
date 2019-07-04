@@ -25,12 +25,19 @@
     - [Extract, transform, load](#Extract-transform-load)
       - [Example](#Example)
   - [Introducing AWS Lambda functions](#Introducing-AWS-Lambda-functions)
+  - [Testing a Lambda Function](#Testing-a-Lambda-Function)
 - [AWS Kinesis Data Firehose](#AWS-Kinesis-Data-Firehose)
   - [Kinesis Data Firehose - Data Flow](#Kinesis-Data-Firehose---Data-Flow)
   - [Demystifying AWS Kinesis: Streams vs Firehose](#Demystifying-AWS-Kinesis-Streams-vs-Firehose)
     - [Kinesis streams](#Kinesis-streams)
     - [Kineses firehose](#Kineses-firehose)
   - [Grant Kinesis Data Firehose Access to an Amazon S3 Destination](#Grant-Kinesis-Data-Firehose-Access-to-an-Amazon-S3-Destination)
+  - [Amazon Kinesis Data Firehose Data Transformation](#Amazon-Kinesis-Data-Firehose-Data-Transformation)
+    - [Data Transformation and Status Model](#Data-Transformation-and-Status-Model)
+      - [recordId](#recordId)
+      - [result](#result)
+      - [data](#data)
+    - [Lambda Blueprints](#Lambda-Blueprints)
 - [AWS CloudFormation](#AWS-CloudFormation)
 - [AWS Identity and Access Management](#AWS-Identity-and-Access-Management)
 - [AWS Fargate](#AWS-Fargate)
@@ -347,6 +354,17 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
   
 - Then, when the resource changes, Lambda will execute your function and manage the compute resources as needed in order to keep up with incoming requests.
 
+---
+
+## Testing a Lambda Function
+
+If your Lambda function is designed to process events of a specific type, you can use sample event data to test your Lambda function using one of the following methods:
+
+- Test your Lambda function in the console.
+
+- Test your Lambda function using the AWS CLI. You can use the Invoke method to invoke your Lambda function and pass in sample event data.
+
+- Test your Lambda function locally using the AWS SAM CLI.
 
 ***
 
@@ -405,9 +423,13 @@ Kinesis Streams and Kinesis Firehose both allow data to be loaded using HTTPS, t
 
 ## Grant Kinesis Data Firehose Access to an Amazon S3 Destination
 
-When you're using an Amazon S3 destination, Kinesis Data Firehose delivers data to your S3 bucket and can optionally use an AWS KMS key that you own for data encryption. If error logging is enabled, Kinesis Data Firehose also sends data delivery errors to your CloudWatch log group and streams. You are required to have an IAM role when creating a delivery stream. Kinesis Data Firehose assumes that IAM role and gains access to the specified bucket, key, and CloudWatch log group and streams.
+- When you're using an Amazon S3 destination, Kinesis Data Firehose delivers data to your S3 bucket and can optionally use an AWS KMS key that you own for data encryption. 
 
-Use the following trust policy to enable Kinesis Data Firehose to assume the role. Edit the policy to replace account-id with your AWS account ID. This ensures that only you can request Kinesis Data Firehose to assume the IAM role.
+- If error logging is enabled, Kinesis Data Firehose also sends data delivery errors to your CloudWatch log group and streams. 
+  
+- You are required to have an IAM role when creating a delivery stream. 
+  
+- Kinesis Data Firehose `assumes that IAM role and gains access to the specified bucket, key, and CloudWatch log group and streams`. Use the following trust policy to enable Kinesis Data Firehose to assume the role. Edit the policy to replace account-id with your AWS account ID. This ensures that only you can request Kinesis Data Firehose to assume the IAM role.
 
 ```yml
 {
@@ -430,7 +452,13 @@ Use the following trust policy to enable Kinesis Data Firehose to assume the rol
 }
 ```
 
-Use the following access policy to enable Kinesis Data Firehose to access your S3 bucket and AWS KMS key. If you don't own the S3 bucket, add s3:PutObjectAcl to the list of Amazon S3 actions. This grants the bucket owner full access to the objects delivered by Kinesis Data Firehose. This policy also has a statement that allows access to Amazon Kinesis Data Streams. If you don't use Kinesis Data Streams as your data source, you can remove that statement.
+- Use the following access policy to enable Kinesis Data Firehose to access your S3 bucket and AWS KMS key. 
+
+- If you don't own the S3 bucket, add s3:PutObjectAcl to the list of Amazon S3 actions. 
+
+- This `grants the bucket owner full access to the objects delivered by Kinesis Data Firehose`. 
+  
+- This policy also has a statement that allows access to Amazon Kinesis Data Streams. If you don't use Kinesis Data Streams as your data source, you can remove that statement.
 
 ```yml
 {
@@ -501,6 +529,51 @@ Use the following access policy to enable Kinesis Data Firehose to access your S
     ]
 }
 ```
+
+---
+
+## Amazon Kinesis Data Firehose Data Transformation
+
+When you `enable Kinesis Data Firehose data transformation`, Kinesis Data Firehose buffers incoming data up to 3 MB by default.
+
+Kinesis Data Firehose then `invokes the specified Lambda function asynchronously with each buffered batch using the AWS Lambda synchronous invocation mode`. 
+
+The transformed data is sent from Lambda to Kinesis Data Firehose. Kinesis Data Firehose then sends it to the destination when the specified destination buffering size or buffering interval is reached, whichever happens first.
+
+### Data Transformation and Status Model
+
+All transformed records from Lambda must contain the following parameters, or Kinesis Data Firehose rejects them and treats that as a data transformation failure.
+
+#### recordId
+
+- The record ID is passed from Kinesis Data Firehose to Lambda during the invocation. 
+  
+- The transformed record must contain the same record ID. 
+  
+- Any mismatch between the ID of the original record and the ID of the transformed record is treated as a data transformation failure.
+
+#### result
+
+- The status of the data transformation of the record. 
+  
+- The possible values are: `Ok` (the record was transformed successfully), `Dropped` (the record was dropped intentionally by your processing logic), and `ProcessingFailed` (the record could not be transformed). 
+  
+- If a record has a status of Ok or Dropped, Kinesis Data Firehose considers it successfully processed. Otherwise, Kinesis Data Firehose considers it unsuccessfully processed.
+
+#### data
+The transformed data payload, after base64-encoding.
+
+---
+### Lambda Blueprints
+
+Kinesis Data Firehose provides the following Lambda blueprints that you can use to create a Lambda function for data transformation.
+
+- General Firehose Processing — Contains the data transformation and status model described in the previous section. Use this blueprint for any custom transformation logic.
+
+- Kinesis Data Firehose Process Record Streams as source — Accesses the Kinesis Data Streams records in the input and returns them with a processing status.
+
+- Kinesis Data Firehose CloudWatch Logs Processor — Parses and extracts individual log events from records sent by CloudWatch Logs subscription filters.
+
 
 
 ***
