@@ -64,10 +64,14 @@
       - [An Amazon API Gateway REST API](#An-Amazon-API-Gateway-REST-API)
       - [IAM Roles](#IAM-Roles-1)
   - [Copy the Streaming Service Code](#Copy-the-Streaming-Service-Code)
+    - [Create a new CodeCommit Repository](#Create-a-new-CodeCommit-Repository)
   - [Update the Lambda Function Package and Code](#Update-the-Lambda-Function-Package-and-Code)
+    - [Use Maven to Build Lambda Function Package](#Use-Maven-to-Build-Lambda-Function-Package)
+    - [Update the Lambda Function Code](#Update-the-Lambda-Function-Code)
   - [Creating the Streaming Service Stack](#Creating-the-Streaming-Service-Stack)
     - [Create an S3 Bucket for Lambda Function Code Packages](#Create-an-S3-Bucket-for-Lambda-Function-Code-Packages)
     - [Use the SAM CLI to Package your Code for Lambda](#Use-the-SAM-CLI-to-Package-your-Code-for-Lambda)
+    - [Deploy the Stack using AWS CloudFormation](#Deploy-the-Stack-using-AWS-CloudFormation)
   - [Emmiting Mysfit Profile Clicks to the Stream](#Emmiting-Mysfit-Profile-Clicks-to-the-Stream)
     - [Update the Website Content](#Update-the-Website-Content)
     - [Push the New Site Version to S3](#Push-the-New-Site-Version-to-S3)
@@ -780,17 +784,248 @@ A new bucket will be created in S3 where all of the processed click event record
 
 ## Copy the Streaming Service Code
 
+### Create a new CodeCommit Repository
+
+This new stack you will deploy using CloudFormation will not only contain the infrastructure environment resources, but the application code itself that AWS Lambda will execute to process streaming events. To bundle the creation of our infrastructure and code together in one deployment, we are going to use another AWS tool that comes pre-installed in the AWS Cloud9 IDE - `AWS SAM CLI`.
+
+Code for AWS Lambda functions is delivered to the service by uploading the function code in a .zip package to an Amazon S3 bucket. The SAM CLI automates that process for us.
+
+Using it, we can create a CloudFormation template that references locally in the filesystem where all of the code for our Lambda function is stored. 
+
+Then, the SAM CLI will package it into a .zip file, upload it to a configured Amazon S3 bucket, and create a new CloudFormation template that indicates the location in S3 where the created .zip package has been uploaded for deployment to AWS Lambda. We can then deploy that SAM CLI-generated CloudFormation template to AWS and watch the environment be created along with the Lambda function that uses the SAM CLI-uploaded code package.
+
+
 ---
 
 ## Update the Lambda Function Package and Code
 
+### Use Maven to Build Lambda Function Package
+
+Now, we have the repository directory set with all of the provided artifacts:
+
+- A CFN template for creating the full stack.
+- A Java file that contains the code for our Lambda function
+
+This is a common approach that AWS customers take - to store their CloudFormation templates alongside their application code in a repository. That way, you have a single place where all changes to application and it's environment can be tracked together.
+
+```
+mvn clean install
+```
+
+### Update the Lambda Function Code
+
+Next, we have one code change to make prior to our Lambda function code being completely ready for deployment. 
+
+That service is responsible for integrating with the MysfitsTable in DynamoDB, so even though we could write a Lambda function that directly integrated with the DynamoDB table as well, doing so would intrude upon the purpose of the first microservice and leave us with multiple/separate code bases that integrated with the same table. 
+
+Instead, we will integrate with that table through the existing service and have a much more decoupled and modular application architecture.
+
+- LambdaFunctionHandler.java
+
+```java
+package com.amazonaws.lambda.streamprocessor;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.KinesisFirehoseEvent;
+import com.amazonaws.services.lambda.runtime.events.KinesisAnalyticsInputPreprocessingResponse;
+import com.amazonaws.services.lambda.runtime.events.KinesisAnalyticsInputPreprocessingResponse.Result;
+import com.amazonaws.services.lambda.runtime.events.KinesisAnalyticsInputPreprocessingResponse.Record;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class LambdaFunctionHandler implements RequestHandler<KinesisFirehoseEvent, KinesisAnalyticsInputPreprocessingResponse> {
+
+	/* Handler method invoked by Lambda with events
+	 * This case includes a record from the Kinesis Firehose Delivery System.
+	 */
+    @Override
+    public KinesisAnalyticsInputPreprocessingResponse handleRequest(KinesisFirehoseEvent event, Context context) {
+
+        // Using the aws-lambda-java-libs library response object
+        KinesisAnalyticsInputPreprocessingResponse response = new KinesisAnalyticsInputPreprocessingResponse();
+
+        List<Record> transformedRecordsList = new ArrayList<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        /*
+         * retrieve the list of records included with the event and loop through
+         * them to retrieve the full list of mysfit attributes and add the additional
+         * attributes that a hypothetical BI/Analyitcs team would like to analyze.
+         */
+        for (KinesisFirehoseEvent.Record record : event.getRecords()) {
+
+            Record transformedRecord = new Record();
+
+            // Setup fields required by Firehose
+        	transformedRecord.setRecordId(record.getRecordId());
+        	transformedRecord.setResult(Result.Ok);
+
+            try {
+
+                //Get string version of the record data and map to click record object
+                String convertedData = new String(record.getData().array(), "UTF-8");
+                ClickRecord updatedClickRecord = mapper.readValue(convertedData, ClickRecord.class);
+
+                //Retrieve rest of mysfits info from the Mythical Mysfits service API
+                Mysfit mysfit = retrieveMysfit(updatedClickRecord.getMysfitId(), context);
+
+                //Set additional mysfit attributes in the updated record
+                updatedClickRecord.setGoodevil(mysfit.getGoodevil());
+                updatedClickRecord.setLawchaos(mysfit.getLawchaos());
+                updatedClickRecord.setSpecies(mysfit.getSpecies());
+
+                //printing results for testing
+                context.getLogger().log("For Mysfit: " + updatedClickRecord.getMysfitId());
+                context.getLogger().log("click record: " + mapper.writeValueAsString(updatedClickRecord));
+
+                //Convert updated record to ByteBuffer expected by Kinesis Firehose
+                byte[] clickByteArray = mapper.writeValueAsString(updatedClickRecord).getBytes("UTF-8");
+                transformedRecord.setData(ByteBuffer.wrap(clickByteArray));
+
+            }
+            catch (JsonParseException e) {
+                e.printStackTrace();
+            }
+            catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+            catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            //add the updated record to the record list
+            transformedRecordsList.add(transformedRecord);
+        }
+
+        //update response with new records
+        response.setRecords(transformedRecordsList);
+
+        return response;
+    }
+
+    /*
+     * Send a request to the Mysfits Service API that we have created in previous
+     * modules to retrieve all of the attributes for the included MysfitId.
+     */
+    public Mysfit retrieveMysfit(String mysfitId, Context context) {
+
+        String apiEndpoint = "REPLACE_ME_API_ENDPOINT" + "/mysfits/" + mysfitId; // eg: 'https://ljqomqjzbf.execute-api.us-east-1.amazonaws.com/prod/'
+
+        Mysfit mysfit = new Mysfit();
+
+        try {
+
+            URL url = new URL(apiEndpoint);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                throw new RuntimeException("Failed : HTTP error code : "
+                        + conn.getResponseCode());
+            }
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+
+            String output = "";
+            String line;
+            while ((line = br.readLine()) != null) {
+                output += line;
+            }
+
+            context.getLogger().log("Final output: " + output);
+
+            // Map the response from the service API to a mysfit object
+            mysfit = new ObjectMapper().readValue(output, Mysfit.class);
+
+            conn.disconnect();
+
+        } catch (MalformedURLException e) {
+
+            e.printStackTrace();
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        }
+
+        return mysfit;
+
+    }
+
+}
+```
 ---
 
 ## Creating the Streaming Service Stack
 
 ### Create an S3 Bucket for Lambda Function Code Packages
+With that line changed in the Java file, and our code committed, we are ready to use the AWS SAM CLI to package all of our function code, upload it to S3, and create the deployable CloudFormation template to create our streaming stack.
+
+First, use the AWS CLI to create a new S3 bucket where our Lambda function code packages will be uploaded to. S3 bucket names need to be globally unique among all AWS customers, so replace the end of this bucket name with a string that's unique to you:
+
+```
+aws s3 mb s3://REPLACE_ME_YOUR_BUCKET_NAME/
+```
 
 ### Use the SAM CLI to Package your Code for Lambda
+
+With our bucket created, we are ready to use the SAM CLI to package and upload our code and transform the CloudFormation template, be sure to replace the last command parameter with the bucket name you just created above (this command also assumes your terminal is still in the repository working directory):
+
+```
+sam package --template-file ./real-time-streaming.yml --output-template-file ./transformed-streaming.yml --s3-bucket REPLACE_ME_YOUR_BUCKET_NAME
+```
+
+If successful, you will see the newly created transformed-streaming.yml file exist within the ./cfn/ directory, if you look in its contents, you'll see that the CodeUri parameter of the serverless Lambda function has been updated with the object location where the SAM CLI has uploaded your packaged code.
+
+```yml
+MysfitsClicksProcessor:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.amazonaws.lambda.streamprocessor.LambdaFunctionHandler
+      Runtime: java8
+      CodeUri: s3://kevin-website-lambda-resources/******
+      Description: An Amazon Kinesis Firehose stream processor that enriches click
+        records to not just include a mysfitId, but also other attributes that can
+        be analyzed later.
+      MemorySize: 128
+      Timeout: 30
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:GetItem
+          Resource:
+            Fn::Join:
+            - ''
+            - - 'arn:aws:dynamodb:'
+              - Ref: AWS::Region
+              - ':'
+              - Ref: AWS::AccountId
+              - :table/MysfitsTable
+```
+
+### Deploy the Stack using AWS CloudFormation
 
 
 ---
