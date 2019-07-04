@@ -42,7 +42,11 @@
     - [](#)
 - [Module 3 Adding a Data Tier with Amazon DynamoDB](#Module-3-Adding-a-Data-Tier-with-Amazon-DynamoDB)
   - [Adding a NoSQL Database to Mythical Mysfits](#Adding-a-NoSQL-Database-to-Mythical-Mysfits)
+    - [Create a DynamoDB Table](#Create-a-DynamoDB-Table)
+    - [Add Items to the DynamoDB Table](#Add-Items-to-the-DynamoDB-Table)
   - [Changing the application to read from Amazon DynamoDB](#Changing-the-application-to-read-from-Amazon-DynamoDB)
+    - [Copy the Updated Service Code](#Copy-the-Updated-Service-Code)
+    - [Push the Updated Code and Update The Website Content in S3](#Push-the-Updated-Code-and-Update-The-Website-Content-in-S3)
 - [Module 4: Adding User and API features with Amazon API Gateway and AWS Cognito](#Module-4-Adding-User-and-API-features-with-Amazon-API-Gateway-and-AWS-Cognito)
   - [Adding a User Pool for Website Users](#Adding-a-User-Pool-for-Website-Users)
   - [Adding a new REST API with Amazon API Gateway](#Adding-a-new-REST-API-with-Amazon-API-Gateway)
@@ -491,7 +495,43 @@ Rather than have all of the Mysfits be stored in a static JSON file, we will sto
 ## Adding a NoSQL Database to Mythical Mysfits
 
 
+### Create a DynamoDB Table
+
+```
+aws dynamodb create-table --cli-input-json file://~/environment/aws-modern-application-workshop/module-3/aws-cli/dynamodb-table.json
+
+```
+
+```
+aws dynamodb describe-table --table-name MysfitsTable
+```
+
+### Add Items to the DynamoDB Table
+
+```
+aws dynamodb batch-write-item --request-items file://~/environment/aws-modern-application-workshop/module-3/aws-cli/populate-dynamodb.json
+```
+
+---
+
 ## Changing the application to read from Amazon DynamoDB
+
+### Copy the Updated Service Code
+
+The AWS SDKs are powerful yet simple clients to interact with AWS services in several programming environments. It enables you to use service client definitions and functions that have great symmetry with the AWS APIs and CLI commands you've already been executing as part of this workshop. To copy the new files into your CodeCommit repository directory, execute the following command in the terminal:
+
+```
+cp ~/environment/aws-modern-application-workshop/module-3/app/service/* ~/environment/MythicalMysfitsService-Repository/service/
+```
+
+You can review the code change to use the DynamoDB client classes for Java in the file `~/environment/aws-modern-application-workshop/module-3/app/service/src/main/java/com/example/MythicalMysfitsService.java`
+
+
+### Push the Updated Code and Update The Website Content in S3
+
+Now, we need to check in these code changes to CodeCommit using the git command line client. Run the following commands to check in the new code changes and kick of your CI/CD pipeline.
+
+nally, we need to publish a new index.html page to our S3 bucket so that the new API functionality using query strings to filter responses will be used. The new index.html file is located at ~/environment/aws-modern-application-workshop/module-3/web/index.html.
 
 ***
 
