@@ -1027,12 +1027,35 @@ MysfitsClicksProcessor:
 
 ### Deploy the Stack using AWS CloudFormation
 
+Also returned by the SAM CLI command is the CloudFormation command needed to be executed to create our new full stack. 
+
+But because our stack creates IAM resources, you'll need to add one additional parameter to the command. Execute the following command to deploy the streaming stack:
+
+```
+aws cloudformation deploy --template-file /home/ec2-user/environment/MythicalMysfitsStreamingService-Repository/transformed-streaming.yml --stack-name MythicalMysfitsStreamingStack --capabilities CAPABILITY_IAM
+```
+
+Once this stack creation is complete, the full real-time processing microservice will be created.
+
+In future `scenarios where only code changes have been made to your Lambda function`, and the `rest of your CloudFormation stack remains unchanged`, you can repeat the `same AWS SAM CLI and CloudFormation commands as above`. 
+
+This will result in the infrastructure environment remaining unchanged, but a code deployment occurring to your Lambda function.
 
 ---
 
 ## Emmiting Mysfit Profile Clicks to the Stream
  
 ### Update the Website Content
+
+With the streaming stack up and running, we now need to publish a new version of our Mythical Mysfits frontend that includes the JavaScript that sends events to our service whenever a mysfit profile is clicked by a user.
+
+The new index.html file is included at: `~/environment/aws-modern-application-workshop/module-5/web/index.html`
+
+Perform the following command for the new streaming stack to retrieve the new API Gateway endpoint for your stream processing service:
+
+```
+aws cloudformation describe-stacks --stack-name MythicalMysfitsStreamingStack
+```
 
 ### Push the New Site Version to S3
 
