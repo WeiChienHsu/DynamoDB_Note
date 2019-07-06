@@ -25,6 +25,7 @@
     - [Extract, transform, load](#Extract-transform-load)
       - [Example](#Example)
   - [Introducing AWS Lambda functions](#Introducing-AWS-Lambda-functions)
+  - [AWS Lambda Applications](#AWS-Lambda-Applications)
   - [Testing a Lambda Function](#Testing-a-Lambda-Function)
 - [AWS Kinesis Data Firehose](#AWS-Kinesis-Data-Firehose)
   - [Kinesis Data Firehose - Data Flow](#Kinesis-Data-Firehose---Data-Flow)
@@ -353,6 +354,22 @@ Zillow uses Lambda and Kinesis to track a subset of mobile metrics in realtime. 
 - After you upload your code to AWS Lambda, you can associate your function with specific AWS resources (e.g. a particular Amazon S3 bucket, Amazon DynamoDB table, Amazon Kinesis stream, or Amazon SNS notification). 
   
 - Then, when the resource changes, Lambda will execute your function and manage the compute resources as needed in order to keep up with incoming requests.
+
+---
+
+## AWS Lambda Applications
+
+- An AWS Lambda application is a combination of Lambda functions, event sources, and other resources that work together to perform tasks. You can use AWS CloudFormation and other tools to collect your application's components into a single package that can be deployed and managed as one resource. Applications make your Lambda projects portable and enable you to integrate with additional developer tools, such as AWS CodePipeline, AWS CodeBuild, and the AWS Serverless Application Model command line interface (SAM CLI).
+
+- The AWS Serverless Application Repository provides a collection of Lambda applications that you can deploy in your account with a few clicks. The repository includes both ready-to-use applications and samples that you can use as a starting point for your own projects. You can also submit your own projects for inclusion.
+
+- AWS CloudFormation enables you to create a template that defines your application's resources and lets you manage the application as a stack. You can more safely add or modify resources in your application stack. If any part of an update fails, AWS CloudFormation automatically rolls back to the previous configuration. With AWS CloudFormation parameters, you can create multiple environments for your application from the same template.
+
+- The AWS Serverless Application Model (AWS SAM) is an extension for the AWS CloudFormation template language that lets you define serverless applications at a higher level. It abstracts away common tasks such as function role creation, which makes it easier to write templates. AWS SAM is supported directly by AWS CloudFormation, and includes additional functionality through the AWS CLI and AWS SAM CLI.
+
+- The AWS CLI and AWS SAM CLI are command line tools for managing Lambda application stacks. In addition to commands for managing application stacks with the AWS CloudFormation API, the AWS CLI supports higher-level commands that simplify tasks like uploading deployment packages and updating templates. The AWS SAM CLI provides additional functionality, including validating templates and testing locally.
+
+
 
 ---
 
